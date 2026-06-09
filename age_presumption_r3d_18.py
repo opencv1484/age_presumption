@@ -381,6 +381,7 @@ class TestDataset_age(Dataset):
 # テスト関数
 # =========================
 def test_age():
+    """6D"""
     TEST_IMAGE_DIR = "E:/mri_age/dataset/3D_T1_skstp/test"
     TEST_CSV_PATH = "E:/mri_age/dataset/data_test.csv"
 
@@ -445,7 +446,7 @@ class TestDataset(Dataset):
 
         # ===== clean =====
         self.df = self.df.replace([np.inf, -np.inf], np.nan)
-        self.df = self.df.dropna(subset=["HEIGHT", "WEIGHT", "AGE"])
+        self.df = self.df.dropna(subset=["HEIGHT", "WEIGHT"])
 
         # ===== BMI =====
         self.df["BMI"] = self.df["WEIGHT"] / (
@@ -524,21 +525,42 @@ def test():
     test_loader = DataLoader(
         test_ds,
         batch_size=1,
-        shuffle=False
+        shuffle=False,
+        num_workers=0
     )
 
     tab_dim = len(test_ds[0][1])
 
+    print("tab_dim =", tab_dim)
+
     model = MultiModalModel(tab_dim).to(DEVICE)
 
+    ckpt_path = "./checkpoints/norm_arg/best.pth"
+
+    print(f"Loading checkpoint: {ckpt_path}")
+
     checkpoint = torch.load(
-        "./checkpoints/best.pth",
-        map_location=DEVICE
+        ckpt_path,
+        map_location=DEVICE,
+        weights_only=False
     )
 
-    model.load_state_dict(
-        checkpoint["model_state"]
-    )
+    state_dict = checkpoint["model_state"]
+
+    # DataParallel対応
+    if list(state_dict.keys())[0].startswith("module."):
+
+        from collections import OrderedDict
+
+        new_state_dict = OrderedDict()
+
+        for k, v in state_dict.items():
+            name = k.replace("module.", "")
+            new_state_dict[name] = v
+
+        state_dict = new_state_dict
+
+    model.load_state_dict(state_dict)
 
     model.eval()
 
@@ -559,28 +581,33 @@ def test():
 
             pred = model(img, tab)
 
-            pred_age = pred.item()
-            true_age = age.item()
+            pred_age = float(pred.item())
+            true_age = float(age.item())
 
             preds.append(pred_age)
             gts.append(true_age)
 
             print(
-                f"ID: {id_str[0]} | "
+                f"ID: {id_str} | "
                 f"Pred: {pred_age:.2f} | "
                 f"GT: {true_age:.2f}"
             )
 
-    # ===== MAE =====
     preds = np.array(preds)
     gts = np.array(gts)
 
     mae = np.mean(np.abs(preds - gts))
+    rmse = np.sqrt(np.mean((preds - gts) ** 2))
+
+    if len(preds) > 1:
+        corr = np.corrcoef(preds, gts)[0, 1]
+    else:
+        corr = np.nan
 
     print("\n===== Summary =====")
-    print(f"MAE: {mae:.3f}")
-
-
+    print(f"MAE  : {mae:.3f}")
+    print(f"RMSE : {rmse:.3f}")
+    print(f"Corr : {corr:.3f}")
 
 
 
@@ -588,8 +615,8 @@ def test():
 
 if __name__ == "__main__":
     #train()
-    #test()
-    test_age()
+    test()
+    #test_age()
 
 
 
