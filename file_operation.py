@@ -1,12 +1,11 @@
 
 
-def fiole_operation():
+def file_operation():
     import os
     import shutil
-    import shutil
 
 
-    mode = "PD"
+    mode = "T2"
     phase = "test"
 
     root = f"E:/mri_age/dataset/data/{phase}" #train #test
@@ -33,13 +32,13 @@ def skull_stripping():
 
     import subprocess
     import os
-    path = f"E:/mri_age/dataset/3D_T1/test" #f"E:/mri_age/dataset/3D_{mode}/{file}"
+    path = f"E:/mri_age/dataset/3D_T2/test" #f"E:/mri_age/dataset/3D_{mode}/{file}"
     
 
     files = os.listdir(path)
     for file in files:
         in_path = f"{path}/{file}"
-        out_path = f"E:/mri_age/dataset/3D_T1_skstp/test/{file}"
+        out_path = f"E:/mri_age/dataset/3D_T2_skstp/test/{file}"
 
         subprocess.run([
             "hd-bet",
